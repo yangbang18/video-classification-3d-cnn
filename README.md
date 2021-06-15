@@ -1,8 +1,6 @@
-# Video Classification Using 3D ResNet
+This repository is forked from [kenshohara/video-classification-3d-cnn](https://github.com/kenshohara/video-classification-3d-cnn) and is used to extracted 3D features of videos for [Non-Autoregressive-Video-Captioning](https://github.com/yangbang18/Non-Autoregressive-Video-Captioning).
 
-This repository is forked from [kenshohara/video-classification-3d-cnn](https://github.com/kenshohara/video-classification-3d-cnn).
-
-## Extracting Features
+Example code:
 ```
 python main.py \
 --gpu 0 \
@@ -10,12 +8,13 @@ python main.py \
 --video_root ~/VC_data/MSRVTT/all_frames/ \
 --feats_dir ~/VC_data/MSRVTT/feats/
 ```
-* `--model` is the path of a pretrained model (see `preparation` section below)
+* `--model` is the path of a pretrained model (see the Section `preparation` below)
 * `--video_root` is the path that contain many folders (named with `vid`), each of which contains extracted video frames
 * `--feats_dir` is the path to save extracted features (stored in a `.hdf5` file)
 
 =========== original README below =============
 
+# Video Classification Using 3D ResNet
 
 This is a pytorch code for video (action) classification using 3D ResNet trained by [this code](https://github.com/kenshohara/3D-ResNets-PyTorch).  
 The 3D ResNet is trained on the Kinetics dataset, which includes 400 action classes.  
