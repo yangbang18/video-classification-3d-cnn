@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet
+from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet, c3d
 
 
 def generate_model(opt):
@@ -10,9 +10,9 @@ def generate_model(opt):
         last_fc = True
     elif opt.mode == 'feature':
         last_fc = False
-
-    assert opt.model_name in ['resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet']
-
+    #print('model 13')
+    assert opt.model_name in ['resnet', 'preresnet', 'wideresnet', 'resnext', 'densenet', 'c3d']
+    #print(opt)
     if opt.model_name == 'resnet':
         assert opt.model_depth in [10, 18, 34, 50, 101, 152, 200]
 
@@ -55,17 +55,34 @@ def generate_model(opt):
         assert opt.model_depth in [50, 101, 152]
 
         if opt.model_depth == 50:
-            model = resnext.resnet50(num_classes=opt.n_classes, shortcut_type=opt.resnet_shortcut, cardinality=opt.resnext_cardinality,
+            model = resnext.resnet50(shortcut_type=opt.resnet_shortcut, cardinality=opt.resnext_cardinality,
                                      sample_size=opt.sample_size, sample_duration=opt.sample_duration,
-                                     last_fc=last_fc)
+                                     last_fc=last_fc,
+                                     use_setask=opt.use_setask,
+                                     dim_task2=opt.dim_task2,
+                                     dim_feats=opt.dim_feats,
+                                     dim_category_task=opt.dim_category_task,
+                                      c3d_type=opt.c3d_type)
         elif opt.model_depth == 101:
-            model = resnext.resnet101(num_classes=opt.n_classes, shortcut_type=opt.resnet_shortcut, cardinality=opt.resnext_cardinality,
+            #print('model 62')
+            model = resnext.resnet101(shortcut_type=opt.resnet_shortcut, cardinality=opt.resnext_cardinality,
                                       sample_size=opt.sample_size, sample_duration=opt.sample_duration,
-                                      last_fc=last_fc)
+                                      last_fc=last_fc,
+                                      use_setask=opt.use_setask,
+                                      dim_task2=opt.dim_task2,
+                                      dim_feats=opt.dim_feats,
+                                     dim_category_task=opt.dim_category_task,
+                                      c3d_type=opt.c3d_type
+                                     )
         elif opt.model_depth == 152:
-            model = resnext.resnet152(num_classes=opt.n_classes, shortcut_type=opt.resnet_shortcut, cardinality=opt.resnext_cardinality,
+            model = resnext.resnet152(shortcut_type=opt.resnet_shortcut, cardinality=opt.resnext_cardinality,
                                       sample_size=opt.sample_size, sample_duration=opt.sample_duration,
-                                      last_fc=last_fc)
+                                      last_fc=last_fc,
+                                      use_setask=opt.use_setask,
+                                      dim_task2=opt.dim_task2,
+                                      dim_feats=opt.dim_feats,
+                                     dim_category_task=opt.dim_category_task,
+                                      c3d_type=opt.c3d_type)
     elif opt.model_name == 'preresnet':
         assert opt.model_depth in [18, 34, 50, 101, 152, 200]
 
@@ -112,6 +129,8 @@ def generate_model(opt):
             model = densenet.densenet264(num_classes=opt.n_classes,
                                          sample_size=opt.sample_size, sample_duration=opt.sample_duration,
                                          last_fc=last_fc)
+    elif opt.model_name == 'c3d':
+        model = c3d.C3D(op=opt.c3d_type)
 
     if not opt.no_cuda:
         model = model.cuda()

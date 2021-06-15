@@ -4,31 +4,59 @@ from torch.autograd import Variable
 from dataset import Video
 from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 from temporal_transforms import LoopPadding
-
-def classify_video(video_dir, video_name, class_names, model, opt):
+import numpy as np
+import os
+import torchvision.transforms as tf
+def classify_video(video_dir, video_name, class_names, model, opt, db=None):
     assert opt.mode in ['score', 'feature']
+    RGB_to_BGR = True if 'c3d' == opt.model_name else False
+    if RGB_to_BGR:
+        spatial_transform = Compose([tf.Resize((128,171)),
+                                     tf.CenterCrop(opt.sample_size),
+                                     ToTensor()
+                                     ])
+        
+    else:
+        spatial_transform = Compose([Scale(opt.sample_size),
+                                     CenterCrop(opt.sample_size),
+                                     ToTensor(),
+                                     Normalize(opt.mean, [1, 1, 1])])
+    
 
-    spatial_transform = Compose([Scale(opt.sample_size),
-                                 CenterCrop(opt.sample_size),
-                                 ToTensor(),
-                                 Normalize(opt.mean, [1, 1, 1])])
     temporal_transform = LoopPadding(opt.sample_duration)
-    data = Video(video_dir, spatial_transform=spatial_transform,
+    data = Video(video_dir, opt.n_frames, spatial_transform=spatial_transform,
                  temporal_transform=temporal_transform,
-                 sample_duration=opt.sample_duration)
-    data_loader = torch.utils.data.DataLoader(data, batch_size=opt.batch_size,
-                                              shuffle=False, num_workers=opt.n_threads, pin_memory=True)
+                 sample_duration=opt.sample_duration, sample_step=opt.sample_step,
+                 RGB_to_BGR=RGB_to_BGR, mean=opt.mean
+                 )
+    import math
+    print(math.ceil((len(os.listdir(video_dir)) - opt.sample_duration) / opt.sample_step) + 1, len(data))
+    #assert math.ceil((len(os.listdir(video_dir)) - opt.sample_duration) / opt.sample_step) + 1 == len(data)
+    data_loader = torch.utils.data.DataLoader(data, batch_size=1,
+                                              shuffle=False)
 
     video_outputs = []
     video_segments = []
     for i, (inputs, segments) in enumerate(data_loader):
-        inputs = Variable(inputs, volatile=True)
-        outputs = model(inputs)
+        #print(inputs.shape, inputs[0, :, 0, 0, 0])
+        with torch.no_grad():
+            if opt.model_name == 'c3d':
+                #print(i, inputs.shape)
+                outputs = model(inputs.cuda())
+            else:
+                outputs = model(inputs, opt.sample_duration)
 
-        video_outputs.append(outputs.cpu().data)
-        video_segments.append(segments)
+            video_outputs.append(outputs.cpu().data)
+            video_segments.append(segments)
 
-    video_outputs = torch.cat(video_outputs)
+    video_outputs = torch.cat(video_outputs, dim=0)
+    print(video_outputs.shape)
+    if db is not None:
+        db[video_name.split('.')[0]] = video_outputs.cpu().numpy()
+    else:
+        np.save(os.path.join(opt.feats_dir, video_name.split('.')[0] + '.npy'), video_outputs.cpu().numpy())
+    return video_outputs
+    '''
     video_segments = torch.cat(video_segments)
     results = {
         'video': video_name,
@@ -50,3 +78,4 @@ def classify_video(video_dir, video_name, class_names, model, opt):
         results['clips'].append(clip_results)
 
     return results
+    '''
