@@ -69,13 +69,7 @@ class ResNeXtBottleneck(nn.Module):
 
 class ResNeXt(nn.Module):
 
-    def __init__(self, block, layers, sample_size, sample_duration, shortcut_type='B', cardinality=32, last_fc=True,
-                                     use_setask=False,
-                                     dim_task2=300,
-                                     dim_feats=0,
-                                     dim_category_task = [14],
-                                     c3d_type = 0
-                                     ):
+    def __init__(self, block, layers, sample_size, sample_duration, shortcut_type='B', cardinality=32, num_classes=400, last_fc=True):
         self.last_fc = last_fc
 
         self.inplanes = 64
@@ -92,33 +86,7 @@ class ResNeXt(nn.Module):
         last_duration = math.ceil(sample_duration / 16)
         last_size = math.ceil(sample_size / 32)
         self.avgpool = nn.AvgPool3d((last_duration, last_size, last_size), stride=1)
-        self.avgpool2 = nn.AvgPool3d((1, 7, 7), stride=1)
-
-        self.dim_feats = dim_feats
-        dim_input = cardinality * 32 * block.expansion
-        if dim_feats:
-            self.fc_feats = nn.Linear(cardinality * 32 * block.expansion, dim_feats)
-            nn.init.xavier_normal_(self.fc_feats.weight)
-            dim_input = dim_feats
-        else:
-            dim_input = cardinality * 32 * block.expansion
-
-        self.fc_list = []
-        for i in range(len(dim_category_task)):
-            if i == 0: 
-                self.fc = nn.Linear(dim_input, dim_category_task[0])
-                self.fc_list.append(self.fc)
-            if i == 1: 
-                self.fc1 = nn.Linear(dim_input, dim_category_task[1])
-                self.fc_list.append(self.fc1)
-        
-        for fc in self.fc_list:
-            nn.init.xavier_normal_(fc.weight)
-
-        self.use_setask = use_setask
-        if use_setask:
-            self.fc_se = nn.Linear(dim_input, dim_task2)
-            nn.init.xavier_normal_(self.fc_se.weight)
+        self.fc = nn.Linear(cardinality * 32 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv3d):
@@ -127,8 +95,6 @@ class ResNeXt(nn.Module):
             elif isinstance(m, nn.BatchNorm3d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-
-        self.c3d_type = c3d_type
 
     def _make_layer(self, block, planes, blocks, shortcut_type, cardinality, stride=1):
         downsample = None
@@ -152,30 +118,23 @@ class ResNeXt(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x, frames=16):
-        #print(x.shape, self.conv1)
+    def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        if frames == 8:
-            x = self.avgpool2(x)
-            return x.view(x.size(0), -1)
         x = self.layer4(x)
-        if self.c3d_type == 1:
-            return x.squeeze(2)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        
-        if self.dim_feats:
-            x = self.fc_feats(x)
 
+        x = self.avgpool(x)
+
+        x = x.view(x.size(0), -1)
         if self.last_fc:
-            #x = self.fc1(x)      
-            return x
+            x = self.fc(x)
+
         return x
 
 def get_fine_tuning_parameters(model, ft_begin_index):

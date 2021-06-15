@@ -79,21 +79,26 @@ def get_video_names_and_annotations(data, subset):
     return video_names, annotations
 
 
-
-
-
 class Video(data.Dataset):
-    def __init__(self, video_path, n_frames,
-                 spatial_transform=None, temporal_transform=None,
-                 sample_duration=16, get_loader=get_default_video_loader, sample_step=16, RGB_to_BGR=False, mean=[]):
+    def __init__(
+            self,
+            video_path,
+            n_frames,
+            spatial_transform=None, 
+            temporal_transform=None,
+            sample_duration=16, 
+            get_loader=get_default_video_loader, 
+            sample_step=16, 
+            mean=[],
+            verbose=False
+        ):
         self.n_frames = n_frames
         self.data = self.make_dataset(video_path, sample_duration, sample_step)
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
         self.loader = get_loader()
-        self.RGB_to_BGR = RGB_to_BGR
         self.mean = mean
-        print('RGB_to_BGR', RGB_to_BGR)
+        self.verbose = verbose
 
     def __getitem__(self, index):
         """
@@ -108,19 +113,15 @@ class Video(data.Dataset):
         if self.temporal_transform is not None:
             frame_indices = self.temporal_transform(frame_indices)
         clip = self.loader(path, frame_indices)
-        print(len(clip), frame_indices, path)
-        #print(os.listdir(path))
+        
+        if self.verbose:
+            print(len(clip), frame_indices, path)
+
         if self.spatial_transform is not None:
             clip = [self.spatial_transform(img) for img in clip]
         clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
-        if self.RGB_to_BGR:
-            clip[0, :, :, :] -= self.mean[0]
-            clip[1, :, :, :] -= self.mean[1]
-            clip[2, :, :, :] -= self.mean[2]
-            clip = clip[[2, 1, 0], :, :, :]
 
         target = self.data[index]['segment']
-
         return clip, target
 
     def __len__(self):
@@ -145,49 +146,33 @@ class Video(data.Dataset):
             for i in range(1, (n_frames - sample_duration + 1), step):
                 sample_i = copy.deepcopy(sample)
                 sample_i['frame_indices'] = list(range(i, i + sample_duration))
-                #print(sample_i['frame_indices'])
                 sample_i['segment'] = torch.IntTensor([i, i + sample_duration - 1])
                 dataset.append(sample_i)
             if i - step != n_frames - sample_duration + 1:
                 sample_i = copy.deepcopy(sample)
                 sample_i['frame_indices'] = list(range(n_frames - sample_duration + 1, n_frames + 1))
                 sample_i['segment'] = torch.IntTensor([n_frames - sample_duration + 1, n_frames])
-                #print(sample_i['frame_indices'])
                 dataset.append(sample_i)
         else:
-            def check(begin, end, nf):
-                if begin < 1:
-                    intervel = 1-begin
-                    begin += intervel
-                    end += intervel
-                if end > nf + 1:
-                    intervel = end - nf - 1
-                    end -= intervel
-                    begin -= intervel
-                return begin, end
-
             samples = []
             bound = [int(i) for i in np.linspace(0, n_frames, self.n_frames+1)]
             for i in range(self.n_frames):
                 samples.append((bound[i] + bound[i+1]) // 2)
-            for item in samples:
-                sample_i = copy.deepcopy(sample)
+            
+            for item in samples:    
                 begin_t = max(item - sample_duration // 2, 1)
                 end_t = min(item + sample_duration // 2, n_frames+1)
+                
                 length = end_t - begin_t
                 indices = list(range(begin_t, end_t))
                 if length != sample_duration:
                     remain = sample_duration - length
                     if begin_t == 1:
-                        for pp in range(remain):
-                            indices.insert(0, 1)
+                        indices = [1] * remain + indices
                     else:
-                        for pp in range(remain):
-                            indices.append(indices[-1])
+                        indices = indices + [indices[-1]] * remain
 
-                #begin_t, end_t = check(begin_t, end_t, n_frames)
-
-                #sample_i['frame_indices'] = list(range(begin_t, end_t))
+                sample_i = copy.deepcopy(sample)
                 sample_i['frame_indices'] = indices
                 sample_i['segment'] = torch.IntTensor([begin_t, end_t - 1])
                 dataset.append(sample_i)

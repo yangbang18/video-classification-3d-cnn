@@ -1,19 +1,13 @@
 import os
-import sys
-import json
-import subprocess
-import numpy as np
 import torch
-from torch import nn
-
 from opts import parse_opts
 from model import generate_model
 from mean import get_mean
 from classify import classify_video
-
 from tqdm import tqdm
-from collections import OrderedDict
 import h5py
+
+
 if __name__=="__main__":
     opt = parse_opts()
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpu
@@ -21,78 +15,50 @@ if __name__=="__main__":
     opt.arch = '{}-{}'.format(opt.model_name, opt.model_depth)
     opt.sample_size = 112
     
-    db = None
-    if opt.use_db:
-        name = '%s_%s_%s.hdf5' % (opt.dataset.lower(), 
-            'c3d' if 'c3d' == opt.model_name else 'kinetics', 
-            str(opt.n_frames) if opt.n_frames else '%d_%d'%(opt.sample_duration, opt.sample_step))
-        opt.feats_dir += name
-        db = h5py.File(opt.feats_dir, 'a')
+    if opt.n_frames:
+        name = 'motion_{}{}_kinetics_fixed{}.hdf5'.format(
+            opt.model_name, opt.model_depth, opt.n_frames
+        )
+        print('- Given a video, equally sampling {} segments ({} frames per segment) \
+            and then extracting their features'.format(opt.n_frames, opt.sample_duration))
     else:
-        if not opt.n_frames:
-            opt.feats_dir = opt.feats_dir + '_{}_{}'.format(opt.sample_duration, opt.sample_step)
-        else:
-            opt.feats_dir += '_%d' % opt.n_frames
-            if opt.c3d_type == 1:
-                opt.feats_dir += '_rf'
-        print(opt.feats_dir)
-        if not os.path.exists(opt.feats_dir):
-            os.makedirs(opt.feats_dir)
-    model = generate_model(opt)
-    #input = torch.FloatTensor(10, 3, 8, 112, 112)
-    #f = model(input, 8)
-    #print(f.shape)
-    #summary(model, input_size=(10, 3, 16, 112, 112))
+        name = 'motion_{}{}_kinetics_duration{}_overlap{}.hdf5'.format(
+            opt.model_name, opt.model_depth, opt.sample_duration, opt.sample_step
+        )
+        print('- Dividing each video into segments ({} frames per segment) \
+            with {} frames overlapping'.format(opt.sample_duration, opt.sample_step))
 
-    print(model)
-    print('loading model {}'.format(opt.model))
-    model_data = torch.load(opt.model)
-    if opt.model_name != 'c3d':
-        assert opt.arch == model_data['arch']
-        model.load_state_dict(model_data['state_dict'])
-    else:
-        new_state_dict = OrderedDict() 
-        for k, v in model_data.items(): 
-            name = 'module.' + k
-            new_state_dict[name] = v
-        model.load_state_dict(new_state_dict)
-    model.eval()
+    opt.feats_dir = os.path.join(opt.feats_dir, name)
+    print('- Save extracted features to {}'.format(opt.feats_dir))
+    db = h5py.File(opt.feats_dir, 'a')
+    
+    model = generate_model(opt)
     if opt.verbose:
         print(model)
+        print('loading model {}'.format(opt.model))
 
-    #input_files = []
+    model_data = torch.load(opt.model)
+    assert opt.arch == model_data['arch']
+    model.load_state_dict(model_data['state_dict'])
+    model.eval()
+    
     input_files = os.listdir(opt.video_root)
-    class_names = []
-    ''' 
-    with open(opt.input, 'r') as f:
-        for row in f:
-            input_files.append(row[:-1])
-
-     
-    with open('class_names_list') as f:
-        for row in f:
-            class_names.append(row[:-1])
-    '''
     
-    for input_file in tqdm(input_files):
-        print(input_file)
-        if opt.dataset != 'VATEX':
-            if int(input_file[5:]) >= 10000:
-                continue
-        if input_file in db.keys():
+    for video_name in tqdm(input_files):
+        assert 'video' in video_name
+
+        if int(video_name[5:]) >= 10000:
+            # for MSR-VTT, only extract features of video0 ~ video9999
+            # for Youtube2Text (MSVD), only extract features of video0 ~ video1969
             continue
-        video_path = os.path.join(opt.video_root, input_file)
-        if not opt.use_db:
-            npy_file = os.path.join(opt.feats_dir, input_file.split('.')[0] + '.npy')
-            if os.path.exists(npy_file):
-                continue
-        classify_video(video_path, input_file, class_names, model, opt, db)
 
-    '''
-    if os.path.exists('tmp'):
-        subprocess.call('rm -rf tmp', shell=True)
+        if video_name in db.keys():
+            # features is already extracted
+            continue
+        
+        video_path = os.path.join(opt.video_root, video_name)
+        features, _ = classify_video(video_path, model, opt)
+        db[video_name] = features.cpu().detach().numpy()
 
-    with open(opt.output, 'w') as f:
-        json.dump(outputs, f)
-    '''
-    
+        if opt.verbose:
+            print('{}: shape of {}'.format(video_name, features.shape))
