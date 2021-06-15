@@ -15,6 +15,7 @@ if __name__=="__main__":
     opt.arch = '{}-{}'.format(opt.model_name, opt.model_depth)
     opt.sample_size = 112
     
+    os.makedirs(opt.feats_dir, exist_ok=True)
     if opt.n_frames:
         name = 'motion_{}{}_kinetics_fixed{}.hdf5'.format(
             opt.model_name, opt.model_depth, opt.n_frames
