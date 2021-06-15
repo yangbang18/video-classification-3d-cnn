@@ -23,17 +23,11 @@ def parse_opts():
     parser.add_argument('--feats_dir', default='/home/yangbang/VideoCaptioning/MSRVTT/feats/', type=str)
     parser.add_argument('--sample_duration', default=16, type=int)
     parser.add_argument('--sample_step', default=8, type=int)
-    parser.add_argument('--mean_dataset', default='kinetics', type=str, help='activitynet | kinetics | sports1m')
     parser.add_argument('--n_frames', default=0, type=int)
+    parser.add_argument('--image_prefix', default='', type=str)
+    parser.add_argument('--image_suffix', default='jpg', type=str)
     
     args = parser.parse_args()
     return args
 
-'''
-python main.py \
---gpu 0 \
---model /home/yangbang/VideoCaptioning/resnext-101-kinetics.pth \
---video_root /home/yangbang/VideoCaptioning/MSRVTT/all_frames/ \
---feats_dir /home/yangbang/VideoCaptioning/MSRVTT/feats/
-'''
 

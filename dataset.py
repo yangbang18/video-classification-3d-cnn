@@ -31,10 +31,10 @@ def get_default_image_loader():
         return pil_loader
 
 
-def video_loader(video_dir_path, frame_indices, image_loader):
+def video_loader(video_dir_path, frame_indices, image_loader, image_prefix='', image_suffix='jpg'):
     video = []
     for i in frame_indices:
-        image_path = os.path.join(video_dir_path, '{:05d}.jpg'.format(i))
+        image_path = os.path.join(video_dir_path, '{:s}{:05d}.{:s}'.format(image_prefix, i, image_suffix))
         if os.path.exists(image_path):
             video.append(image_loader(image_path))
         else:
@@ -90,7 +90,9 @@ class Video(data.Dataset):
             get_loader=get_default_video_loader, 
             sample_step=16, 
             mean=[],
-            verbose=False
+            verbose=False,
+            image_prefix='',
+            image_suffix='jpg',
         ):
         self.n_frames = n_frames
         self.data = self.make_dataset(video_path, sample_duration, sample_step)
@@ -99,6 +101,8 @@ class Video(data.Dataset):
         self.loader = get_loader()
         self.mean = mean
         self.verbose = verbose
+        self.image_prefix = image_prefix
+        self.image_suffix = image_suffix
 
     def __getitem__(self, index):
         """
@@ -112,7 +116,7 @@ class Video(data.Dataset):
         frame_indices = self.data[index]['frame_indices']
         if self.temporal_transform is not None:
             frame_indices = self.temporal_transform(frame_indices)
-        clip = self.loader(path, frame_indices)
+        clip = self.loader(path, frame_indices, image_prefix=self.image_prefix, image_suffix=self.image_suffix)
         
         if self.verbose:
             print(len(clip), frame_indices, path)
@@ -131,7 +135,6 @@ class Video(data.Dataset):
         dataset = []
 
         n_frames = len(os.listdir(video_path))
-        print(n_frames)
 
         begin_t = 1
         end_t = n_frames

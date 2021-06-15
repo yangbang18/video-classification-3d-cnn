@@ -21,7 +21,9 @@ def classify_video(video_dir, model, opt):
         sample_duration=opt.sample_duration, 
         sample_step=opt.sample_step, 
         mean=opt.mean,
-        verbose=opt.verbose
+        verbose=opt.verbose,
+        image_prefix=opt.image_prefix,
+        image_suffix=opt.image_suffix,
     )
     
     data_loader = torch.utils.data.DataLoader(data, batch_size=1, shuffle=False)
@@ -31,7 +33,7 @@ def classify_video(video_dir, model, opt):
     model.eval()
     with torch.no_grad():
         for inputs, segments in data_loader:
-            outputs = model(inputs, opt.sample_duration)
+            outputs = model(inputs)
             video_outputs.append(outputs)
             video_segments.append(segments)
 

@@ -11,7 +11,7 @@ import h5py
 if __name__=="__main__":
     opt = parse_opts()
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpu
-    opt.mean = get_mean(opt.mean_dataset)
+    opt.mean = get_mean()
     opt.arch = '{}-{}'.format(opt.model_name, opt.model_depth)
     opt.sample_size = 112
     
@@ -20,14 +20,12 @@ if __name__=="__main__":
         name = 'motion_{}{}_kinetics_fixed{}.hdf5'.format(
             opt.model_name, opt.model_depth, opt.n_frames
         )
-        print('- Given a video, equally sampling {} segments ({} frames per segment) \
-            and then extracting their features'.format(opt.n_frames, opt.sample_duration))
+        print('- Given a video, equally sampling {} segments ({} frames per segment) and then extracting their features'.format(opt.n_frames, opt.sample_duration))
     else:
         name = 'motion_{}{}_kinetics_duration{}_overlap{}.hdf5'.format(
             opt.model_name, opt.model_depth, opt.sample_duration, opt.sample_step
         )
-        print('- Dividing each video into segments ({} frames per segment) \
-            with {} frames overlapping'.format(opt.sample_duration, opt.sample_step))
+        print('- Dividing each video into segments ({} frames per segment) with {} frames overlapping'.format(opt.sample_duration, opt.sample_step))
 
     opt.feats_dir = os.path.join(opt.feats_dir, name)
     print('- Save extracted features to {}'.format(opt.feats_dir))
