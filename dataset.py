@@ -2,7 +2,6 @@ import torch
 import torch.utils.data as data
 from PIL import Image
 import os
-import math
 import functools
 import copy
 import numpy as np
@@ -77,6 +76,15 @@ def get_video_names_and_annotations(data, subset):
                 annotations.append(value['annotations'])
 
     return video_names, annotations
+
+
+def get_uniform_ids_from_k_snippets(length, k, offset=0):
+    uniform_ids = []
+    bound = [int(i) for i in np.linspace(0, length, k+1)]
+    for i in range(k):
+        idx = (bound[i] + bound[i+1]) // 2
+        uniform_ids.append(idx + offset)
+    return uniform_ids
 
 
 class Video(data.Dataset):
@@ -157,10 +165,7 @@ class Video(data.Dataset):
                 sample_i['segment'] = torch.IntTensor([n_frames - sample_duration + 1, n_frames])
                 dataset.append(sample_i)
         else:
-            samples = []
-            bound = [int(i) for i in np.linspace(0, n_frames, self.n_frames+1)]
-            for i in range(self.n_frames):
-                samples.append((bound[i] + bound[i+1]) // 2)
+            samples = get_uniform_ids_from_k_snippets(n_frames, k=self.n_frames, offset=1)
             
             for item in samples:    
                 begin_t = max(item - sample_duration // 2, 1)
