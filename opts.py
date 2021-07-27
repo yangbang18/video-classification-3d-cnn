@@ -27,6 +27,7 @@ def parse_opts():
     parser.add_argument('--image_prefix', default='', type=str)
     parser.add_argument('--image_suffix', default='jpg', type=str)
     
+    parser.add_argument('--limit', default=0, type=int)
     args = parser.parse_args()
     return args
 
