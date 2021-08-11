@@ -153,17 +153,30 @@ class Video(data.Dataset):
         }
 
         if not self.n_frames:
-            step = sample_step
-            for i in range(1, (n_frames - sample_duration + 1), step):
+            begin_t = 1
+            done_flag = False
+            while True:
+                end_t = min(begin_t + sample_duration, n_frames + 1)
+                length = end_t - begin_t
+                indices = list(range(begin_t, end_t))
+                
+                if length < sample_duration:
+                    done_flag = True
+                    remain = sample_duration - length
+                    indices = indices + [indices[-1]] * remain
+                
+                if end_t == n_frames + 1:
+                    done_flag = True
+                
                 sample_i = copy.deepcopy(sample)
-                sample_i['frame_indices'] = list(range(i, i + sample_duration))
-                sample_i['segment'] = torch.IntTensor([i, i + sample_duration - 1])
+                sample_i['frame_indices'] = indices
+                sample_i['segment'] = torch.IntTensor([begin_t, end_t - 1])
                 dataset.append(sample_i)
-            if i - step != n_frames - sample_duration + 1:
-                sample_i = copy.deepcopy(sample)
-                sample_i['frame_indices'] = list(range(n_frames - sample_duration + 1, n_frames + 1))
-                sample_i['segment'] = torch.IntTensor([n_frames - sample_duration + 1, n_frames])
-                dataset.append(sample_i)
+                
+                if done_flag:
+                    break
+                
+                begin_t += sample_step
         else:
             samples = get_uniform_ids_from_k_snippets(n_frames, k=self.n_frames, offset=1)
             
