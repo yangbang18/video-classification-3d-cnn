@@ -46,10 +46,13 @@ if __name__=="__main__":
     for video_name in tqdm(input_files):
         assert 'video' in video_name
 
-        if int(video_name[5:]) >= 10000:
-            # for MSR-VTT, only extract features of video0 ~ video9999
-            # for Youtube2Text (MSVD), only extract features of video0 ~ video1969
+        if opt.limit and int(video_name[5:]) >= opt.limit:
             continue
+
+        # if int(video_name[5:]) >= 10000:
+        #     # for MSR-VTT, only extract features of video0 ~ video9999
+        #     # for Youtube2Text (MSVD), only extract features of video0 ~ video1969
+        #     continue
 
         if video_name in db.keys():
             # features is already extracted
