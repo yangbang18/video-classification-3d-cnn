@@ -17,8 +17,8 @@ if __name__=="__main__":
     
     os.makedirs(opt.feats_dir, exist_ok=True)
     if opt.n_frames:
-        name = 'motion_{}{}_kinetics_fixed{}.hdf5'.format(
-            opt.model_name, opt.model_depth, opt.n_frames
+        name = 'motion_{}{}_kinetics_fixed{}{}.hdf5'.format(
+            opt.model_name, opt.model_depth, opt.n_frames, '_logits' if opt.mode == 'score' else ''
         )
         print('- Given a video, equally sampling {} segments ({} frames per segment) and then extracting their features'.format(opt.n_frames, opt.sample_duration))
     else:
