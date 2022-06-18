@@ -28,6 +28,9 @@ def parse_opts():
     parser.add_argument('--image_suffix', default='jpg', type=str)
     
     parser.add_argument('--limit', default=0, type=int)
+
+    parser.add_argument('--latency', action='store_true')
+    parser.add_argument('--n_latency_samples', type=int, default=1000)
     args = parser.parse_args()
     return args
 

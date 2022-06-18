@@ -1,10 +1,11 @@
+import time
 import torch
 from dataset import Video
 from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 from temporal_transforms import LoopPadding
 
 
-def classify_video(video_dir, model, opt):
+def classify_video(video_dir, model, opt, latency=False):
     spatial_transform = Compose([
         Scale(opt.sample_size),
         CenterCrop(opt.sample_size),
@@ -32,11 +33,28 @@ def classify_video(video_dir, model, opt):
     video_segments = []
     model.eval()
     with torch.no_grad():
+        pool = []
         for inputs, segments in data_loader:
+            if latency:
+                pool.append(inputs)
+                if len(pool) == len(data_loader):
+                    # processing `n_frames` segments (each of which has 16 frames) together
+                    inputs = torch.cat(pool, dim=0)
+                    pool = []
+                    start_time = time.time()
+                else:
+                    continue
+
             outputs = model(inputs)
-            video_outputs.append(outputs)
-            video_segments.append(segments)
 
-    video_outputs = torch.cat(video_outputs, dim=0)
+            if latency:
+                cost_time = time.time() - start_time
+            else:
+                video_outputs.append(outputs)
+                video_segments.append(segments)
 
-    return video_outputs, video_segments
+    if latency:
+        return None, cost_time
+    else:
+        video_outputs = torch.cat(video_outputs, dim=0)
+        return video_outputs, video_segments

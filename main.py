@@ -6,6 +6,7 @@ from mean import get_mean
 from classify import classify_video
 from tqdm import tqdm
 import h5py
+import time
 
 
 if __name__=="__main__":
@@ -26,10 +27,6 @@ if __name__=="__main__":
             opt.model_name, opt.model_depth, opt.sample_duration, opt.sample_step
         )
         print('- Dividing each video into segments ({} frames per segment) with {} frames overlapping'.format(opt.sample_duration, opt.sample_step))
-
-    opt.feats_dir = os.path.join(opt.feats_dir, name)
-    print('- Save extracted features to {}'.format(opt.feats_dir))
-    db = h5py.File(opt.feats_dir, 'a')
     
     model = generate_model(opt)
     if opt.verbose:
@@ -42,6 +39,14 @@ if __name__=="__main__":
     model.eval()
     
     input_files = os.listdir(opt.video_root)
+
+    if opt.latency:
+        total_time = 0
+        input_files = input_files[:opt.n_latency_samples]
+    else:
+        opt.feats_dir = os.path.join(opt.feats_dir, name)
+        print('- Save extracted features to {}'.format(opt.feats_dir))
+        db = h5py.File(opt.feats_dir, 'a')
     
     for video_name in tqdm(input_files):
         assert 'video' in video_name
@@ -54,13 +59,26 @@ if __name__=="__main__":
         #     # for Youtube2Text (MSVD), only extract features of video0 ~ video1969
         #     continue
 
-        if video_name in db.keys():
+        if opt.latency:
+            start_time = time.time()
+        elif video_name in db.keys():
             # features is already extracted
             continue
         
         video_path = os.path.join(opt.video_root, video_name)
-        features, _ = classify_video(video_path, model, opt)
-        db[video_name] = features.cpu().detach().numpy()
+        features, _ = classify_video(video_path, model, opt, latency=opt.latency)
 
-        if opt.verbose:
-            print('{}: shape of {}'.format(video_name, features.shape))
+        if opt.latency:
+            total_time += _
+        else:
+            db[video_name] = features.cpu().detach().numpy()
+
+            if opt.verbose:
+                print('{}: shape of {}'.format(video_name, features.shape))
+
+    if opt.latency:
+        print(f'- # samples: {len(input_files)}')
+        print(f'- Total inference time: {total_time}')
+        print(f'- Average latency: {total_time / len(input_files)}')
+        with open('latency.txt', 'a') as f:
+            f.write(f'motion-{opt.arch}\t{len(input_files)}\t{total_time}\t{total_time / len(input_files)}\n')
