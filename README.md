@@ -2,12 +2,25 @@ This repository is forked from [kenshohara/video-classification-3d-cnn](https://
 
 Example code:
 ```
+# extracting snippets of 16 frames with 8 frames overlapping
 python main.py \
 --gpu 0 \
 --model ./resnext-101-kinetics.pth \
 --video_root ~/VC_data/MSRVTT/all_frames/ \
 --feats_dir ~/VC_data/MSRVTT/feats/
 ```
+
+or
+```
+# extracting 60 snippets of 16 frames
+python main.py \
+--gpu 0 \
+--model ./resnext-101-kinetics.pth \
+--video_root ~/VC_data/MSRVTT/all_frames/ \
+--feats_dir ~/VC_data/MSRVTT/feats/ \
+--n_frames 60
+```
+
 * `--model` is the path of a pretrained model (see the Section `preparation` below)
 * `--video_root` is the path that contain many folders (named with `vid`), each of which contains extracted video frames
 * `--feats_dir` is the path to save extracted features (stored in a `.hdf5` file)
